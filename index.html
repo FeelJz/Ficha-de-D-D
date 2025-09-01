@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ficha de Personagem D&D</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Cinzel', serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+        .container-char {
+            max-width: 1024px;
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        input, select, textarea {
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            transition: border-color 0.2s;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #4b5563;
+        }
+        .ability-score {
+            width: 50px;
+        }
+        .ability-modifier {
+            width: 50px;
+            pointer-events: none;
+        }
+        .dice-button {
+            transition: transform 0.1s, box-shadow 0.2s;
+            border: 2px solid #1f2937;
+            background-color: #e5e7eb;
+        }
+        .dice-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+        .dice-button:active {
+            transform: translateY(0);
+        }
+        .nav-button {
+            transition: background-color 0.2s;
+        }
+        .nav-button.active {
+            background-color: #4b5563;
+            color: #ffffff;
+        }
+        #character-image-placeholder {
+            width: 150px;
+            height: 150px;
+            background-color: #e5e7eb;
+            border: 2px dashed #9ca3af;
+            border-radius: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            overflow: hidden;
+            background-size: cover;
+            background-position: center;
+        }
+        #character-image-placeholder:hover {
+            border-color: #4b5563;
+        }
+        #character-image-placeholder::before {
+            content: "Adicionar Imagem";
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+        #character-image-placeholder.has-image::before {
+            content: none;
+        }
+        #character-image-input {
+            display: none;
+        }
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            border-radius: 1rem;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4b5563;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .save-status {
+            font-size: 0.875rem;
+            text-align: right;
+        }
+    </style>
+</head>
+<body class="p-6 md:p-10">
+    <div class="container-char mx-auto flex flex-col lg:flex-row gap-6">
+
+        <!-- Ficha de Personagem e Inventário (páginas) -->
+        <div class="flex-grow card p-6 md:p-8 relative">
+            <div id="loading-overlay" class="loading-overlay hidden">
+                <div class="loader"></div>
+            </div>
+            
+            <!-- Barra de navegação e botões -->
+            <div class="flex justify-between items-center mb-6">
+                <div class="flex flex-wrap gap-2 md:gap-0">
+                    <button id="char-sheet-nav-btn" class="nav-button px-4 py-2 font-bold md:rounded-l-lg text-lg bg-gray-200 active">Ficha</button>
+                    <button id="inventory-nav-btn" class="nav-button px-4 py-2 font-bold text-lg bg-gray-200">Inventário</button>
+                    <button id="history-nav-btn" class="nav-button px-4 py-2 font-bold text-lg bg-gray-200">História</button>
+                    <button id="spells-nav-btn" class="nav-button px-4 py-2 font-bold md:rounded-r-lg text-lg bg-gray-200">Feitiços</button>
+                </div>
+                <div class="flex flex-col items-end">
+                    <button id="save-btn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-bold transition-colors">Salvar</button>
+                    <span id="save-status" class="save-status text-gray-500 mt-1"></span>
+                </div>
+            </div>
+            
+            <!-- Ficha de Personagem -->
+            <div id="char-sheet-page" class="page">
+                <h1 class="text-3xl font-bold text-center mb-6 text-gray-800">Ficha de Personagem</h1>
+                
+                <!-- Informações Básicas e Imagem -->
+                <div class="flex flex-col md:flex-row items-center gap-6 mb-6">
+                    <!-- Placeholder para a Imagem -->
+                    <label for="character-image-input" id="character-image-placeholder"></label>
+                    <input type="file" id="character-image-input" accept="image/*">
+
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 flex-grow">
+                        <div class="flex flex-col">
+                            <label for="name" class="font-semibold text-sm mb-1">Nome do Personagem</label>
+                            <input type="text" id="name" class="w-full">
+                        </div>
+                        <div class="flex flex-col">
+                            <label for="race-select" class="font-semibold text-sm mb-1">Raça</label>
+                            <select id="race-select" class="w-full">
+                                <option value="">Selecione a Raça</option>
+                                <option value="Humano">Humano</option>
+                                <option value="Elfo">Elfo</option>
+                                <option value="Anão">Anão</option>
+                                <option value="Halfling">Halfling</option>
+                                <option value="Draconato">Draconato</option>
+                                <option value="Gnomo">Gnomo</option>
+                                <option value="Meio-Elfo">Meio-Elfo</option>
+                                <option value="Tiefling">Tiefling</option>
+                                <option value="Meio-Orc">Meio-Orc</option>
+                            </select>
+                        </div>
+                        <div class="flex flex-col">
+                            <label for="class-select" class="font-semibold text-sm mb-1">Classe</label>
+                            <select id="class-select" class="w-full">
+                                <option value="">Selecione a Classe</option>
+                                <option value="Bárbaro">Bárbaro</option>
+                                <option value="Bardo">Bardo</option>
+                                <option value="Clérigo">Clérigo</option>
+                                <option value="Druida">Druida</option>
+                                <option value="Guerreiro">Guerreiro</option>
+                                <option value="Monge">Monge</option>
+                                <option value="Paladino">Paladino</option>
+                                <option value="Ladino">Ladino</option>
+                                <option value="Feiticeiro">Feiticeiro</option>
+                                <option value="Bruxo">Bruxo</option>
+                                <option value="Mago">Mago</option>
+                            </select>
+                        </div>
+                        <div class="flex flex-col">
+                            <label for="archetype-select" class="font-semibold text-sm mb-1">Arquétipo</label>
+                            <select id="archetype-select" class="w-full" disabled>
+                                <option value="">Selecione o Arquétipo</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr class="mb-6">
+                
+                <!-- Atributos -->
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6 text-center">
+                    <div class="flex flex-col items-center">
+                        <label class="font-bold text-lg mb-2">FOR</label>
+                        <input type="number" id="for-score" value="10" class="ability-score text-center mb-1">
+                        <span id="for-mod" class="font-bold text-xl">-</span>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <label class="font-bold text-lg mb-2">DES</label>
+                        <input type="number" id="des-score" value="10" class="ability-score text-center mb-1">
+                        <span id="des-mod" class="font-bold text-xl">-</span>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <label class="font-bold text-lg mb-2">CON</label>
+                        <input type="number" id="con-score" value="10" class="ability-score text-center mb-1">
+                        <span id="con-mod" class="font-bold text-xl">-</span>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <label class="font-bold text-lg mb-2">INT</label>
+                        <input type="number" id="int-score" value="10" class="ability-score text-center mb-1">
+                        <span id="int-mod" class="font-bold text-xl">-</span>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <label class="font-bold text-lg mb-2">SAB</label>
+                        <input type="number" id="sab-score" value="10" class="ability-score text-center mb-1">
+                        <span id="sab-mod" class="font-bold text-xl">-</span>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <label class="font-bold text-lg mb-2">CAR</label>
+                        <input type="number" id="car-score" value="10" class="ability-score text-center mb-1">
+                        <span id="car-mod" class="font-bold text-xl">-</span>
+                    </div>
+                </div>
+
+                <hr class="mb-6">
+
+                <!-- Bônus e Stats de Combate -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <h2 class="font-bold text-lg mb-2">Estatísticas de Combate</h2>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="flex flex-col">
+                                <label for="level" class="font-semibold text-sm mb-1">Nível</label>
+                                <input type="number" id="level" value="1" min="1" class="w-full text-center">
+                            </div>
+                            <div class="flex flex-col">
+                                <label for="proficiency" class="font-semibold text-sm mb-1">Bônus de Proficiência</label>
+                                <input type="text" id="proficiency" readonly class="w-full text-center font-bold">
+                            </div>
+                            <div class="flex flex-col">
+                                <label for="ac" class="font-semibold text-sm mb-1">Classe de Armadura</label>
+                                <input type="number" id="ac" class="w-full text-center">
+                            </div>
+                            <div class="flex flex-col">
+                                <label for="hp" class="font-semibold text-sm mb-1">Pontos de Vida</label>
+                                <input type="number" id="hp" class="w-full text-center">
+                            </div>
+                            <div class="flex flex-col">
+                                <label for="speed" class="font-semibold text-sm mb-1">Velocidade</label>
+                                <input type="number" id="speed" class="w-full text-center">
+                            </div>
+                            <div class="flex flex-col">
+                                <label for="initiative" class="font-semibold text-sm mb-1">Iniciativa</label>
+                                <input type="text" id="initiative" readonly class="w-full text-center font-bold">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Testes de Resistência -->
+                    <div>
+                        <h2 class="font-bold text-lg mb-2">Testes de Resistência</h2>
+                        <div class="flex flex-col gap-2">
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" id="for-st-prof" class="rounded-full">
+                                <label class="font-semibold text-sm">Força</label>
+                                <span id="for-st" class="ml-auto font-bold">-</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" id="des-st-prof" class="rounded-full">
+                                <label class="font-semibold text-sm">Destreza</label>
+                                <span id="des-st" class="ml-auto font-bold">-</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" id="con-st-prof" class="rounded-full">
+                                <label class="font-semibold text-sm">Constituição</label>
+                                <span id="con-st" class="ml-auto font-bold">-</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" id="int-st-prof" class="rounded-full">
+                                <label class="font-semibold text-sm">Inteligência</label>
+                                <span id="int-st" class="ml-auto font-bold">-</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" id="sab-st-prof" class="rounded-full">
+                                <label class="font-semibold text-sm">Sabedoria</label>
+                                <span id="sab-st" class="ml-auto font-bold">-</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" id="car-st-prof" class="rounded-full">
+                                <label class="font-semibold text-sm">Carisma</label>
+                                <span id="car-st" class="ml-auto font-bold">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inventário (escondido por padrão) -->
+            <div id="inventory-page" class="page" style="display: none;">
+                <h1 class="text-3xl font-bold text-center mb-6 text-gray-800">Inventário</h1>
+                <p class="text-xs text-center text-gray-500 mb-2">Seu ID de Usuário: <span id="user-id-display" class="font-bold text-gray-800">Carregando...</span></p>
+
+                <div class="mb-6">
+                    <p class="text-center text-sm mb-4">Itens iniciais serão adicionados automaticamente ao selecionar sua classe e arquétipo.</p>
+                    <div class="bg-gray-100 p-6 rounded-lg">
+                        <h2 class="font-bold text-lg mb-2">Itens Iniciais</h2>
+                        <ul id="starting-items-list" class="list-disc list-inside space-y-1">
+                            <!-- Itens serão adicionados aqui pelo JavaScript -->
+                        </ul>
+                    </div>
+                </div>
+                
+                <hr class="my-6">
+
+                <div class="bg-gray-100 p-6 rounded-lg mb-6">
+                    <h2 class="font-bold text-lg mb-2">Adicionar Item da Lista</h2>
+                    <div class="flex gap-2">
+                        <select id="predefined-item-select" class="flex-grow w-full">
+                            <option value="">Selecione um item...</option>
+                        </select>
+                        <button id="add-predefined-item-btn" class="bg-gray-800 text-white px-4 py-2 rounded-lg font-bold">Adicionar</button>
+                    </div>
+                </div>
+
+                <div class="bg-gray-100 p-6 rounded-lg mb-6">
+                    <h2 class="font-bold text-lg mb-2">Adicionar Novo Item</h2>
+                    <div class="flex flex-col md:flex-row gap-2">
+                        <input type="text" id="new-item-name-input" placeholder="Nome do Item" class="flex-grow">
+                        <input type="number" id="new-item-weight-input" placeholder="Peso (lb)" class="w-24 text-right">
+                        <button id="add-new-item-btn" class="bg-gray-800 text-white px-4 py-2 rounded-lg font-bold">Adicionar</button>
+                    </div>
+                </div>
+                
+                <hr class="my-6">
+
+                <div class="bg-gray-100 p-6 rounded-lg">
+                    <h2 class="font-bold text-lg mb-2">Meus Itens</h2>
+                    <p class="mb-4">Peso total: <span id="total-weight" class="font-bold">0.00 lb</span></p>
+                    <ul id="custom-inventory-list" class="list-none space-y-2">
+                        <!-- Itens adicionados manualmente aqui -->
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- História e Notas (nova página) -->
+            <div id="history-page" class="page" style="display: none;">
+                <h1 class="text-3xl font-bold text-center mb-6 text-gray-800">História e Notas</h1>
+                <p class="text-xs text-center text-gray-500 mb-2">Seu ID de Usuário: <span id="user-id-display-history" class="font-bold text-gray-800">Carregando...</span></p>
+
+                <div class="bg-gray-100 p-6 rounded-lg mb-6">
+                    <h2 class="font-bold text-lg mb-2">História do Personagem</h2>
+                    <textarea id="character-history" rows="10" placeholder="Escreva a história do seu personagem aqui..." class="w-full resize-y"></textarea>
+                </div>
+                
+                <div class="bg-gray-100 p-6 rounded-lg">
+                    <h2 class="font-bold text-lg mb-2">Feitos de Campanha</h2>
+                    <textarea id="campaign-feats" rows="10" placeholder="Registre seus feitos e momentos importantes..." class="w-full resize-y"></textarea>
+                </div>
+            </div>
+            
+            <!-- Feitiços e Habilidades (nova página) -->
+            <div id="spells-page" class="page" style="display: none;">
+                <h1 class="text-3xl font-bold text-center mb-6 text-gray-800">Feitiços e Habilidades</h1>
+                <p class="text-xs text-center text-gray-500 mb-2">Seu ID de Usuário: <span id="user-id-display-spells" class="font-bold text-gray-800">Carregando...</span></p>
+
+                <div class="bg-gray-100 p-6 rounded-lg mb-6">
+                    <h2 class="font-bold text-lg mb-2">Adicionar Feitiço/Habilidade</h2>
+                    <div class="flex flex-col md:flex-row gap-2 mb-4">
+                        <input type="text" id="new-spell-name" placeholder="Nome do Feitiço/Habilidade" class="flex-grow">
+                        <button id="add-spell-btn" class="bg-gray-800 text-white px-4 py-2 rounded-lg font-bold">Adicionar</button>
+                    </div>
+                    <textarea id="new-spell-description" rows="5" placeholder="Descrição e detalhes..." class="w-full resize-y"></textarea>
+                </div>
+
+                <div class="bg-gray-100 p-6 rounded-lg">
+                    <h2 class="font-bold text-lg mb-2">Meus Feitiços e Habilidades</h2>
+                    <ul id="spells-list" class="list-none space-y-4">
+                        <!-- Feitiços serão adicionados aqui pelo JavaScript -->
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Dice Roller -->
+        <div class="w-full lg:w-96 card p-6 md:p-8 flex flex-col">
+            <h2 class="text-2xl font-bold text-center mb-6 text-gray-800">Lançador de Dados</h2>
+            
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-6">
+                <button id="d4-btn" class="dice-button px-4 py-3 font-bold rounded-lg text-lg">d4</button>
+                <button id="d6-btn" class="dice-button px-4 py-3 font-bold rounded-lg text-lg">d6</button>
+                <button id="d10-btn" class="dice-button px-4 py-3 font-bold rounded-lg text-lg">d10</button>
+                <button id="d12-btn" class="dice-button px-4 py-3 font-bold rounded-lg text-lg">d12</button>
+                <button id="d20-btn" class="dice-button px-4 py-3 font-bold rounded-lg text-lg">d20</button>
+            </div>
+            
+            <div class="text-center mb-6 p-4 rounded-lg bg-gray-100">
+                <p class="font-semibold text-sm">Resultado da Rolagem:</p>
+                <p id="roll-result" class="text-5xl font-extrabold text-gray-900 mt-2">-</p>
+            </div>
+
+            <div class="flex-grow flex flex-col">
+                <h3 class="font-bold text-lg mb-2">Histórico de Rolagens</h3>
+                <div id="roll-history" class="bg-gray-100 p-4 rounded-lg flex-grow overflow-y-auto">
+                    <!-- Histórico será inserido aqui pelo JavaScript -->
+                </div>
+                <button id="clear-rolls-btn" class="mt-4 bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-bold">Limpar Histórico</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, query, setLogLevel, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Variáveis globais do Firebase
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let db;
+        let auth;
+        let inventoryCollection;
+        let characterDoc;
+        let spellsCollection;
+        let userId;
+        
+        // Função para calcular o modificador de habilidade
+        function calculateModifier(score) {
+            return Math.floor((score - 10) / 2);
+        }
+        
+        // Dados de itens iniciais por classe e arquétipo
+        const startingEquipmentData = {
+            'Bárbaro': {
+                '': ['Machado grande', 'Dardos (4)', 'Pacote de aventureiro'],
+                'Caminho do Totem Guerreiro': ['Totem de Lobo'],
+                'Caminho da Fúria Berserker': ['Axe de Batalha'],
+            },
+            'Bardo': {
+                '': ['Rapiera', 'Pacote de artista', 'Alaúde'],
+                'Colégio da Sabedoria': ['Lira'],
+                'Colégio do Valor': ['Espada Curta'],
+            },
+            'Clérigo': {
+                '': ['Maça', 'Escudo', 'Armadura de cota de malha', 'Pacote de Sacerdote', 'Símbolo Sagrado'],
+                'Domínio da Vida': ['Poção de Cura Extra'],
+            },
+            'Druida': {
+                '': ['Foice', 'Pacote de explorador', 'Símbolo druídico'],
+                'Círculo da Lua': ['Cajado de madeira'],
+                'Círculo da Terra': ['Ervas medicinais'],
+            },
+            'Guerreiro': {
+                '': ['Espada longa', 'Armadura de cota de malha', 'Escudo', 'Besta leve com 20 virotes'],
+                'Campeão': ['Poção de Cura', 'Rações (3 dias)'],
+                'Mestre de Batalha': ['Poção de Cura', 'Kit de Ferramentas do Ferreiro'],
+            },
+            'Monge': {
+                '': ['Espada curta', 'Dardos (10)', 'Pacote de aventureiro'],
+                'Caminho da Mão Aberta': ['Vara de madeira'],
+            },
+            'Paladino': {
+                '': ['Machado de batalha', 'Escudo', 'Armadura de cota de malha', 'Pacote de explorador', 'Símbolo Sagrado'],
+                'Juramento de Devoção': ['Cajado'],
+            },
+            'Ladino': {
+                '': ['Adaga (2)', 'Besta leve com 20 virotes', 'Ferramentas de ladrão', 'Mochila com itens de aventureiro'],
+                'Ladrão': ['Kit de Disfarce', '15 gp'],
+            },
+            'Feiticeiro': {
+                '': ['Adaga', 'Pacote de explorador', 'Foco arcano'],
+                'Linhagem Dracônica': ['Pedra preciosa'],
+            },
+            'Bruxo': {
+                '': ['Besta leve', 'Adaga (2)', 'Pacote de estudiosos', 'Foco arcano'],
+                'Corrente do Arquifada': ['Capa de viagem'],
+            },
+            'Mago': {
+                '': ['Adaga', 'Componentes de magia', 'Livro de feitiços', 'Mochila com itens de aventureiro'],
+                'Escola da Evocação': ['Varinha Mágica'],
+                'Escola da Necromancia': ['Cajado de Ossos'],
+            },
+        };
+
+        // Dados de itens com peso (em libras, lb)
+        const predefinedItemsData = {
+            'Machado grande': 7,
+            'Dardos': 0.25,
+            'Espada longa': 3,
+            'Espada Curta': 2,
+            'Adaga': 1,
+            'Maça': 4,
+            'Foice': 2,
+            'Machado de batalha': 4,
+            'Rapiera': 2,
+            'Besta leve': 5,
+            'Armadura de Cota de Malha': 55,
+            'Escudo': 6,
+            'Pacote de aventureiro': 25,
+            'Pacote de artista': 12,
+            'Pacote de Sacerdote': 12,
+            'Pacote de explorador': 10,
+            'Pacote de estudiosos': 10,
+            'Mochila': 5,
+            'Alaúde': 2,
+            'Kit de Ferramentas do Ferreiro': 8,
+            'Ferramentas de ladrão': 1,
+            'Poção de Cura': 0.5,
+            'Rações': 2,
+            'Símbolo Sagrado': 1,
+            'Símbolo druídico': 1,
+            'Livro de feitiços': 3,
+            'Varinha Mágica': 1,
+            'Cajado de Ossos': 4,
+            'Cajado': 4,
+            'Vara de madeira': 4,
+            'Kit de Disfarce': 3,
+        };
+
+        // Função para mostrar a página selecionada
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(page => {
+                page.style.display = 'none';
+            });
+            document.getElementById(pageId).style.display = 'block';
+
+            document.querySelectorAll('.nav-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(`${pageId.replace('-page', '')}-nav-btn`).classList.add('active');
+        }
+        
+        // Função para atualizar os valores na ficha e os seletores
+        function updateCharacterSheet() {
+            const abilityScores = ['for', 'des', 'con', 'int', 'sab', 'car'];
+            const level = parseInt(document.getElementById('level').value) || 1;
+            const proficiencyBonus = Math.floor((level - 1) / 4) + 2;
+            document.getElementById('proficiency').value = `+${proficiencyBonus}`;
+            document.getElementById('initiative').value = `+${calculateModifier(parseInt(document.getElementById('des-score').value))}`;
+
+            abilityScores.forEach(ability => {
+                const scoreInput = document.getElementById(`${ability}-score`);
+                const modSpan = document.getElementById(`${ability}-mod`);
+                const stSpan = document.getElementById(`${ability}-st`);
+                const stProfCheckbox = document.getElementById(`${ability}-st-prof`);
+
+                const score = parseInt(scoreInput.value);
+                const mod = calculateModifier(score);
+                modSpan.textContent = mod >= 0 ? `+${mod}` : `${mod}`;
+
+                let stValue = mod;
+                if (stProfCheckbox.checked) {
+                    stValue += proficiencyBonus;
+                }
+                stSpan.textContent = stValue >= 0 ? `+${stValue}` : `${stValue}`;
+            });
+
+            populateArchetypes();
+        }
+
+        // Função para popular o seletor de arquétipos
+        function populateArchetypes() {
+            const classSelect = document.getElementById('class-select');
+            const archetypeSelect = document.getElementById('archetype-select');
+            const selectedClass = classSelect.value;
+            
+            archetypeSelect.innerHTML = '<option value="">Selecione o Arquétipo</option>';
+            archetypeSelect.disabled = !selectedClass;
+
+            if (selectedClass && startingEquipmentData[selectedClass]) {
+                const archetypes = Object.keys(startingEquipmentData[selectedClass]);
+                archetypes.forEach(archetype => {
+                    if (archetype !== '') {
+                        const option = document.createElement('option');
+                        option.value = archetype;
+                        option.textContent = archetype;
+                        archetypeSelect.appendChild(option);
+                    }
+                });
+            }
+        }
+
+        // Função para popular a lista de itens
+        function populateInventory(inventoryData) {
+            const startingItemsList = document.getElementById('starting-items-list');
+            const customItemsList = document.getElementById('custom-inventory-list');
+            const totalWeightSpan = document.getElementById('total-weight');
+
+            // Limpa as listas
+            startingItemsList.innerHTML = '';
+            customItemsList.innerHTML = '';
+            
+            const selectedClass = document.getElementById('class-select').value;
+            const selectedArchetype = document.getElementById('archetype-select').value;
+            
+            // Adiciona itens iniciais e calcula o peso
+            let startingItems = [];
+            let totalWeight = 0;
+            if (selectedClass && startingEquipmentData[selectedClass]) {
+                startingItems = [...(startingEquipmentData[selectedClass][''] || [])];
+            }
+            if (selectedClass && selectedArchetype && startingEquipmentData[selectedClass][selectedArchetype]) {
+                startingItems = [...startingItems, ...(startingEquipmentData[selectedClass][selectedArchetype] || [])];
+            }
+            
+            if (startingItems.length > 0) {
+                startingItems.forEach(itemString => {
+                    const li = document.createElement('li');
+                    li.textContent = itemString;
+                    startingItemsList.appendChild(li);
+
+                    // Tenta encontrar o peso do item, lidando com quantidades entre parênteses
+                    const match = itemString.match(/(.*)\s\((\d+)\)/);
+                    let itemName = itemString;
+                    let itemCount = 1;
+                    if (match) {
+                        itemName = match[1].trim();
+                        itemCount = parseInt(match[2], 10);
+                    }
+                    const itemWeight = predefinedItemsData[itemName] || 0;
+                    totalWeight += itemWeight * itemCount;
+                });
+            } else {
+                const li = document.createElement('li');
+                li.textContent = 'Nenhum item inicial selecionado.';
+                startingItemsList.appendChild(li);
+            }
+
+            // Adiciona itens customizados e calcula peso total
+            if (inventoryData.length > 0) {
+                inventoryData.forEach(item => {
+                    const li = document.createElement('li');
+                    li.className = 'flex items-center gap-2 border-b last:border-b-0 py-2';
+                    li.innerHTML = `
+                        <span class="flex-grow">${item.name}</span>
+                        <div class="flex items-center gap-1">
+                            <span class="text-sm font-semibold">${item.count}</span>
+                            <span class="text-xs text-gray-500">x</span>
+                            <span class="text-sm text-gray-600">${(item.weight || 0).toFixed(2)} lb</span>
+                            <span class="text-sm text-gray-800 font-bold ml-2">Total: ${((item.count * item.weight) || 0).toFixed(2)} lb</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <button class="bg-gray-200 px-2 rounded-full font-bold text-lg leading-none" onclick="updateItemCount('${item.docId}', -1)">-</button>
+                            <button class="bg-gray-200 px-2 rounded-full font-bold text-lg leading-none" onclick="updateItemCount('${item.docId}', 1)">+</button>
+                            <button class="text-red-500 font-bold ml-2 text-sm" onclick="removeItem('${item.docId}')">[Remover]</button>
+                        </div>
+                    `;
+                    customItemsList.appendChild(li);
+                    totalWeight += (item.count * item.weight) || 0;
+                });
+            } else {
+                const li = document.createElement('li');
+                li.textContent = 'Nenhum item adicionado.';
+                customItemsList.appendChild(li);
+            }
+            totalWeightSpan.textContent = `${totalWeight.toFixed(2)} lb`;
+        }
+
+        // Função para popular a lista de feitiços
+        function populateSpells(spellsData) {
+            const spellsList = document.getElementById('spells-list');
+            spellsList.innerHTML = '';
+            if (spellsData.length > 0) {
+                spellsData.forEach(spell => {
+                    const li = document.createElement('li');
+                    li.className = 'bg-white p-4 rounded-lg shadow';
+                    li.innerHTML = `
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="font-bold text-lg">${spell.name}</h3>
+                            <button class="text-red-500 font-bold text-sm" onclick="removeSpell('${spell.docId}')">[Remover]</button>
+                        </div>
+                        <p class="text-gray-700 whitespace-pre-wrap">${spell.description}</p>
+                    `;
+                    spellsList.appendChild(li);
+                });
+            } else {
+                const li = document.createElement('li');
+                li.textContent = 'Nenhum feitiço ou habilidade adicionado.';
+                spellsList.appendChild(li);
+            }
+        }
+
+        // Adiciona um item ao inventário no Firestore
+        async function addItem(item) {
+            try {
+                // Remove a referência de docId antes de adicionar o item
+                const { docId, ...itemData } = item;
+                const docRef = await addDoc(inventoryCollection, itemData);
+            } catch (e) {
+                console.error("Erro ao adicionar documento: ", e);
+            }
+        }
+
+        // Remover item do Firestore
+        async function removeItem(docId) {
+            try {
+                await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/inventory`, docId));
+            } catch (e) {
+                console.error("Erro ao remover documento: ", e);
+            }
+        }
+
+        // Atualizar contador de itens no Firestore
+        async function updateItemCount(docId, change) {
+            try {
+                const itemRef = doc(db, `artifacts/${appId}/users/${userId}/inventory`, docId);
+                const docSnap = await getDoc(itemRef);
+
+                if (docSnap.exists()) {
+                    const currentCount = docSnap.data().count;
+                    const newCount = currentCount + change;
+                    if (newCount <= 0) {
+                        await deleteDoc(itemRef);
+                    } else {
+                        await updateDoc(itemRef, { count: newCount });
+                    }
+                }
+            } catch (e) {
+                console.error("Erro ao atualizar documento: ", e);
+            }
+        }
+
+        // Adicionar um feitiço ao Firestore
+        async function addSpell() {
+            const spellName = document.getElementById('new-spell-name').value.trim();
+            const spellDescription = document.getElementById('new-spell-description').value.trim();
+            if (spellName && spellDescription) {
+                try {
+                    await addDoc(spellsCollection, { name: spellName, description: spellDescription });
+                    document.getElementById('new-spell-name').value = '';
+                    document.getElementById('new-spell-description').value = '';
+                } catch (e) {
+                    console.error("Erro ao adicionar feitiço: ", e);
+                }
+            }
+        }
+
+        // Remover feitiço do Firestore
+        async function removeSpell(docId) {
+            try {
+                await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/spells`, docId));
+            } catch (e) {
+                console.error("Erro ao remover feitiço: ", e);
+            }
+        }
+
+        // Função para adicionar um item da lista pré-definida
+        function addPredefinedItem() {
+            const select = document.getElementById('predefined-item-select');
+            const itemName = select.value;
+            if (itemName) {
+                const itemWeight = predefinedItemsData[itemName] || 0;
+                addItem({ name: itemName, count: 1, weight: itemWeight });
+            }
+        }
+
+        // Adicionar novo item manualmente
+        function addNewItem() {
+            const itemNameInput = document.getElementById('new-item-name-input');
+            const itemWeightInput = document.getElementById('new-item-weight-input');
+            const itemName = itemNameInput.value.trim();
+            const itemWeight = parseFloat(itemWeightInput.value) || 0;
+
+            if (itemName) {
+                addItem({ name: itemName, count: 1, weight: itemWeight });
+                itemNameInput.value = '';
+                itemWeightInput.value = '';
+            }
+        }
+
+        // Função para salvar todos os dados do personagem
+        async function saveCharacterData() {
+            const saveStatus = document.getElementById('save-status');
+            saveStatus.textContent = "Salvando...";
+            saveStatus.classList.remove('text-red-500', 'text-green-500');
+            saveStatus.classList.add('text-gray-500');
+            
+            try {
+                const characterData = {
+                    name: document.getElementById('name').value,
+                    race: document.getElementById('race-select').value,
+                    class: document.getElementById('class-select').value,
+                    archetype: document.getElementById('archetype-select').value,
+                    level: parseInt(document.getElementById('level').value) || 1,
+                    proficiency: document.getElementById('proficiency').value,
+                    ac: parseInt(document.getElementById('ac').value) || 0,
+                    hp: parseInt(document.getElementById('hp').value) || 0,
+                    speed: parseInt(document.getElementById('speed').value) || 0,
+                    initiative: document.getElementById('initiative').value,
+                    forScore: parseInt(document.getElementById('for-score').value) || 10,
+                    desScore: parseInt(document.getElementById('des-score').value) || 10,
+                    conScore: parseInt(document.getElementById('con-score').value) || 10,
+                    intScore: parseInt(document.getElementById('int-score').value) || 10,
+                    sabScore: parseInt(document.getElementById('sab-score').value) || 10,
+                    carScore: parseInt(document.getElementById('car-score').value) || 10,
+                    forProf: document.getElementById('for-st-prof').checked,
+                    desProf: document.getElementById('des-st-prof').checked,
+                    conProf: document.getElementById('con-st-prof').checked,
+                    intProf: document.getElementById('int-st-prof').checked,
+                    sabProf: document.getElementById('sab-st-prof').checked,
+                    carProf: document.getElementById('car-st-prof').checked,
+                    history: document.getElementById('character-history').value,
+                    feats: document.getElementById('campaign-feats').value
+                };
+                await setDoc(characterDoc, characterData);
+                saveStatus.textContent = "Salvo!";
+                saveStatus.classList.remove('text-gray-500');
+                saveStatus.classList.add('text-green-500');
+            } catch (e) {
+                console.error("Erro ao salvar dados: ", e);
+                saveStatus.textContent = "Erro ao salvar!";
+                saveStatus.classList.remove('text-gray-500');
+                saveStatus.classList.add('text-red-500');
+            }
+        }
+        
+        // Função para carregar os dados do personagem
+        function loadCharacterData(data) {
+            document.getElementById('name').value = data.name || '';
+            document.getElementById('race-select').value = data.race || '';
+            document.getElementById('class-select').value = data.class || '';
+            document.getElementById('archetype-select').value = data.archetype || '';
+            document.getElementById('level').value = data.level || 1;
+            document.getElementById('ac').value = data.ac || '';
+            document.getElementById('hp').value = data.hp || '';
+            document.getElementById('speed').value = data.speed || '';
+            document.getElementById('for-score').value = data.forScore || 10;
+            document.getElementById('des-score').value = data.desScore || 10;
+            document.getElementById('con-score').value = data.conScore || 10;
+            document.getElementById('int-score').value = data.intScore || 10;
+            document.getElementById('sab-score').value = data.sabScore || 10;
+            document.getElementById('car-score').value = data.carScore || 10;
+            document.getElementById('for-st-prof').checked = data.forProf || false;
+            document.getElementById('des-st-prof').checked = data.desProf || false;
+            document.getElementById('con-st-prof').checked = data.conProf || false;
+            document.getElementById('int-st-prof').checked = data.intProf || false;
+            document.getElementById('sab-st-prof').checked = data.sabProf || false;
+            document.getElementById('car-st-prof').checked = data.carProf || false;
+            document.getElementById('character-history').value = data.history || '';
+            document.getElementById('campaign-feats').value = data.feats || '';
+            
+            updateCharacterSheet();
+        }
+
+        // Event Listeners
+        document.getElementById('level').addEventListener('input', updateCharacterSheet);
+        document.getElementById('race-select').addEventListener('change', updateCharacterSheet);
+        ['for', 'des', 'con', 'int', 'sab', 'car'].forEach(ability => {
+            document.getElementById(`${ability}-score`).addEventListener('input', updateCharacterSheet);
+            document.getElementById(`${ability}-st-prof`).addEventListener('change', updateCharacterSheet);
+        });
+
+        document.getElementById('class-select').addEventListener('change', updateCharacterSheet);
+        document.getElementById('archetype-select').addEventListener('change', () => {
+             // Re-popular a lista de itens iniciais
+            populateInventory([]);
+        });
+
+        document.getElementById('char-sheet-nav-btn').addEventListener('click', () => showPage('char-sheet-page'));
+        document.getElementById('inventory-nav-btn').addEventListener('click', () => showPage('inventory-page'));
+        document.getElementById('history-nav-btn').addEventListener('click', () => showPage('history-page'));
+        document.getElementById('spells-nav-btn').addEventListener('click', () => showPage('spells-page'));
+        document.getElementById('save-btn').addEventListener('click', saveCharacterData);
+
+        document.getElementById('add-predefined-item-btn').addEventListener('click', addPredefinedItem);
+        document.getElementById('add-new-item-btn').addEventListener('click', addNewItem);
+        document.getElementById('add-spell-btn').addEventListener('click', addSpell);
+
+        // Adicionar imagem do personagem
+        document.getElementById('character-image-input').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const placeholder = document.getElementById('character-image-placeholder');
+                    placeholder.style.backgroundImage = `url('${e.target.result}')`;
+                    placeholder.classList.add('has-image');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Dice Roller
+        const rollHistory = [];
+        const maxHistory = 10;
+
+        function rollDice(sides) {
+            const result = Math.floor(Math.random() * sides) + 1;
+            document.getElementById('roll-result').textContent = result;
+            
+            const rollEntry = {
+                dice: `d${sides}`,
+                result: result,
+                timestamp: new Date().toLocaleTimeString()
+            };
+
+            rollHistory.unshift(rollEntry);
+            if (rollHistory.length > maxHistory) {
+                rollHistory.pop();
+            }
+
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const historyContainer = document.getElementById('roll-history');
+            historyContainer.innerHTML = '';
+            rollHistory.forEach(entry => {
+                const historyItem = document.createElement('div');
+                historyItem.className = 'p-2 my-1 bg-gray-200 rounded-md';
+                historyItem.innerHTML = `<span class="font-semibold text-gray-700">${entry.timestamp}:</span> Rolou um <span class="font-bold">${entry.dice}</span>, resultado: <span class="font-bold text-lg">${entry.result}</span>`;
+                historyContainer.appendChild(historyItem);
+            });
+        }
+
+        function clearRolls() {
+            rollHistory.length = 0;
+            renderHistory();
+            document.getElementById('roll-result').textContent = '-';
+        }
+
+        // Event Listeners para os botões de dados
+        document.getElementById('d4-btn').addEventListener('click', () => rollDice(4));
+        document.getElementById('d6-btn').addEventListener('click', () => rollDice(6));
+        document.getElementById('d10-btn').addEventListener('click', () => rollDice(10));
+        document.getElementById('d12-btn').addEventListener('click', () => rollDice(12));
+        document.getElementById('d20-btn').addEventListener('click', () => rollDice(20));
+        document.getElementById('clear-rolls-btn').addEventListener('click', clearRolls);
+
+        // Inicializa a ficha com valores padrão
+        window.onload = async () => {
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            const predefinedItemSelect = document.getElementById('predefined-item-select');
+            for (const item in predefinedItemsData) {
+                const option = document.createElement('option');
+                option.value = item;
+                option.textContent = item;
+                predefinedItemSelect.appendChild(option);
+            }
+            updateCharacterSheet();
+            showPage('char-sheet-page');
+
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                setLogLevel('Debug');
+
+                await signInWithCustomToken(auth, initialAuthToken).catch(async (error) => {
+                    if (error.code === 'auth/invalid-custom-token') {
+                        console.log('Token inválido. Assinando anonimamente.');
+                        await signInAnonymously(auth);
+                    } else {
+                        throw error;
+                    }
+                });
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        document.getElementById('user-id-display').textContent = userId;
+                        document.getElementById('user-id-display-history').textContent = userId;
+                        document.getElementById('user-id-display-spells').textContent = userId;
+                        
+                        inventoryCollection = collection(db, `artifacts/${appId}/users/${userId}/inventory`);
+                        characterDoc = doc(db, `artifacts/${appId}/users/${userId}/characterData`, 'main');
+                        spellsCollection = collection(db, `artifacts/${appId}/users/${userId}/spells`);
+                        
+                        // Listener para o inventário
+                        onSnapshot(inventoryCollection, (snapshot) => {
+                            const updatedInventory = [];
+                            snapshot.forEach(doc => {
+                                const data = doc.data();
+                                updatedInventory.push({ ...data, docId: doc.id });
+                            });
+                            populateInventory(updatedInventory);
+                        });
+
+                        // Listener para os dados do personagem
+                        onSnapshot(characterDoc, (doc) => {
+                            if (doc.exists()) {
+                                loadCharacterData(doc.data());
+                            } else {
+                                console.log("Nenhum dado de personagem encontrado, usando padrões.");
+                            }
+                        });
+
+                        // Listener para os feitiços
+                        onSnapshot(spellsCollection, (snapshot) => {
+                            const updatedSpells = [];
+                            snapshot.forEach(doc => {
+                                const data = doc.data();
+                                updatedSpells.push({ ...data, docId: doc.id });
+                            });
+                            populateSpells(updatedSpells);
+                        });
+                        
+                        document.getElementById('loading-overlay').classList.add('hidden');
+                    } else {
+                        // User is signed out
+                        document.getElementById('user-id-display').textContent = 'Anônimo';
+                        document.getElementById('user-id-display-history').textContent = 'Anônimo';
+                        document.getElementById('user-id-display-spells').textContent = 'Anônimo';
+                        document.getElementById('loading-overlay').classList.add('hidden');
+                    }
+                });
+            } catch (e) {
+                console.error("Erro ao inicializar Firebase: ", e);
+                document.getElementById('loading-overlay').classList.add('hidden');
+            }
+        };
+    </script>
+</body>
+</html>
